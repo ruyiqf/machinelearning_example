@@ -7,12 +7,20 @@ import collections
 import random
 import pickle
 from skimage import io
+from sklearn.externals import joblib
 from sklearn import metrics
 
 class NormalClassifier(object):
 
     def __init__(self):
         self.label_file_map = collections.defaultdict(list)
+        self.classifier = {'NB':self.NaiveBayesClassifier,
+                           'LR':self.LogisticRegressionClassifier,
+                           'RF':self.RandomForestClassifier,
+                           'DT':self.DecisionTreeClassifier,
+                           'SVM':self.SvmClassifier,
+                           'SVMCV':self.SvmCrossValidationClassifier,
+                           'GBDT':self.GradientBoostingClassifier}
 
     def Sampling(self, path, number):
         """Random extracting samples under path
@@ -69,33 +77,107 @@ class NormalClassifier(object):
         model.fit(train_x, train_y)    
         return model
 
+    def LogisticRegressionClassifier(self, train_x, train_y):
+        from sklearn.linear_model import LogisticRegression
+        model = LogisticRegression(penalty='l2')
+        model.fit(train_x, train_y)
+        return model
+
+    def RandomForestClassifier(self, train_x, train_y):    
+        from sklearn.ensemble import RandomForestClassifier    
+        model = RandomForestClassifier(n_estimators=8)    
+        model.fit(train_x, train_y)    
+        return model    
+
+    def DecisionTreeClassifier(self, train_x, train_y):    
+        from sklearn import tree    
+        model = tree.DecisionTreeClassifier()    
+        model.fit(train_x, train_y)    
+        return model
+
+    def GradientBoostingClassifier(self, train_x, train_y):
+        from sklearn.ensemble import GradientBoostingClassifier
+        model = GradientBoostingClassifier(n_estimators=200)
+        model.fit(train_x, train_y)
+        return model
+
+    def SvmClassifier(self, train_x, train_y):
+        from sklearn.svm import SVC
+        model = SVC(kernel='rbf', probability=True)
+        model.fit(train_x, train_y)
+        return model
+    
+    def SvmCrossValidationClassifier(self, train_x, train_y):    
+        from sklearn.grid_search import GridSearchCV
+        from sklearn.svm import SVC 
+        model = SVC(kernel='rbf', probability=True)    
+        param_grid = {'C': [1e-3, 1e-2, 1e-1, 1, 10, 100, 1000], 'gamma': [0.001, 0.0001]}    
+        grid_search = GridSearchCV(model, param_grid, n_jobs = 1, verbose=1)    
+        grid_search.fit(train_x, train_y)    
+        best_parameters = grid_search.best_estimator_.get_params()    
+        model = SVC(kernel='rbf', C=best_parameters['C'], gamma=best_parameters['gamma'], probability=True)    
+        model.fit(train_x, train_y)    
+        return model    
+
+    def GenerateOneModel(self, model_name, train_x, train_y):
+        """Generate training model
+        :model_name: []
+        :train_x: training data
+        :train_y: training label
+        """
+        print('Begin training %s modle'%model_name)
+        start_time = time.time()
+        model = classifier[model_name](train_x, train_y)
+        joblib.dump(model, model_name+'_model')
+        print('Trained %s model time:%fs!'%(model_name, time.time()-start_time))
+
+    def PredictSet(self, path, model_name):
+        allfiles = os.listdir(path)
+        x = np.empty([len(allfiles), 68*68])
+        i = 0
+        file_index_map = collections.defaultdict(str)
+        ret = collections.defaultdict(str)
+        for elt in allfiles:
+            x[i] = io.imread(os.path.join(path, elt)).reshape((1,-1))[0]
+            file_index_map[i] = elt
+            i+=1
+        model = joblib.load(model_name+'_model')
+        predict = model.predict(x)
+        for i in range(len(predict)):
+            ret[file_index_map[i]] = predict[i]
+        return ret
+
+"""
+Testing code
+"""
 def main():
     nc = NormalClassifier()
-    print('********************%s*******************\n'%'NaiveBayes')
-    """
     start_time = time.time()
     train_x, train_y, test_x, test_y = nc.Sampling('./BmpMoban', 200)
     print('Build date set time:%fs!'%(time.time() - start_time))
+    #nc.GenerateOneModel('NB', train_x, train_y)
+    nc.GenerateOneModel('LR', train_x, train_y)
+    
+    
+    """
     print('Begin training')
     start_time = time.time()
-    model = nc.NaiveBayesClassifier(train_x, train_y)
-    pickle.dump(model, open('nc_model', 'wb'))
+    #model = nc.NaiveBayesClassifier(train_x, train_y)
+    model = nc.RandomForestClassifier(train_x, train_y)
+    #pickle.dump(model, open('nc_model', 'wb'))
+    #pickle.dump(model, open('random_forest_model', 'wb'))
     print('Training time:%fs!'%(time.time() - start_time))
-    """
-    test_x, test_y = nc.Sampling4Test('./BmpMoban', 10) 
-    model = pickle.load(open('nc_model','rb'))
+    test_x, test_y = nc.Sampling4Test('./BmpMoban', 10)
+    #model = pickle.load(open('nc_model','rb'))
     predict = model.predict(test_x)
-    predict = list(predict)
-    cnt = 0
-    for elt in predict:
-        if elt == test_y[predict.index(elt)]:
-            cnt += 1
-    print(float(cnt/len(predict)))
-    #precision = metrics.precision_score(test_y, predict)
-    #recall = metrics.recall_score(test_y, predict)
-    #print('precision: %.2f%%, recall: %.2f%%' % (100 * precision, 100 * recall))
-    #accuracy = metrics.accuracy_score(test_y, predict)
-    #print('accuracy: %.2f%%' % (100 * accuracy))
+    test_y = np.array(test_y, dtype=np.int)
+    predict = predict.astype(int)
+    precision = metrics.precision_score(test_y, predict, average='micro')
+    recall = metrics.recall_score(test_y, predict, average='micro')
+    print('precision: %.2f%%, recall: %.2f%%' % (100 * precision, 100 * recall))
+    accuracy = metrics.accuracy_score(test_y, predict)
+    print('accuracy: %.2f%%' % (100 * accuracy))
+    """
 
 if __name__ == '__main__':
     main()
