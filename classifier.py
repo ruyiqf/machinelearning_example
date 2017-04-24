@@ -127,7 +127,7 @@ class NormalClassifier(object):
         """
         print('Begin training %s modle'%model_name)
         start_time = time.time()
-        model = classifier[model_name](train_x, train_y)
+        model = self.classifier[model_name](train_x, train_y)
         joblib.dump(model, model_name+'_model')
         print('Trained %s model time:%fs!'%(model_name, time.time()-start_time))
 
@@ -147,37 +147,34 @@ class NormalClassifier(object):
             ret[file_index_map[i]] = predict[i]
         return ret
 
+    def ValidateSet(self, path, number, model_name):
+        test_x, test_y = self.Sampling4Test(path, number)
+        model = joblib.load(model_name+'_model')
+        predict = model.predict(test_x)
+        test_y = np.array(test_y, dtype=np.int)
+        predict = predict.astype(int)
+        for i in range(len(predict)):
+            if predict[i] == test_y[i]:
+                print(predict[i])
+        precision = metrics.precision_score(test_y, predict, average='micro')
+        recall = metrics.recall_score(test_y, predict, average='micro')
+        accuracy = metrics.accuracy_score(test_y, predict)
+        print('precision: %.2f%%' % (100 * precision))
+        print('recall: %.2f%%' % (100 * recall))
+        print('accuracy: %.2f%%' % (100 * accuracy))
+
 """
 Testing code
 """
 def main():
     nc = NormalClassifier()
-    start_time = time.time()
-    train_x, train_y, test_x, test_y = nc.Sampling('./BmpMoban', 200)
-    print('Build date set time:%fs!'%(time.time() - start_time))
-    #nc.GenerateOneModel('NB', train_x, train_y)
-    nc.GenerateOneModel('LR', train_x, train_y)
-    
-    
-    """
-    print('Begin training')
-    start_time = time.time()
-    #model = nc.NaiveBayesClassifier(train_x, train_y)
-    model = nc.RandomForestClassifier(train_x, train_y)
-    #pickle.dump(model, open('nc_model', 'wb'))
-    #pickle.dump(model, open('random_forest_model', 'wb'))
-    print('Training time:%fs!'%(time.time() - start_time))
-    test_x, test_y = nc.Sampling4Test('./BmpMoban', 10)
-    #model = pickle.load(open('nc_model','rb'))
-    predict = model.predict(test_x)
-    test_y = np.array(test_y, dtype=np.int)
-    predict = predict.astype(int)
-    precision = metrics.precision_score(test_y, predict, average='micro')
-    recall = metrics.recall_score(test_y, predict, average='micro')
-    print('precision: %.2f%%, recall: %.2f%%' % (100 * precision, 100 * recall))
-    accuracy = metrics.accuracy_score(test_y, predict)
-    print('accuracy: %.2f%%' % (100 * accuracy))
-    """
+    #start_time = time.time()
+    train_x, train_y, test_x, test_y = nc.Sampling('./BmpMoban', 250)
+    #print('Build date set time:%fs!'%(time.time() - start_time))
+    nc.GenerateOneModel('NB', train_x, train_y)
+    #nc.GenerateOneModel('RF', train_x, train_y)
+    #nc.GenerateOneModel('SVMCV', train_x, train_y)
+    #nc.ValidateSet('./check', 10, 'NB')
 
 if __name__ == '__main__':
     main()
