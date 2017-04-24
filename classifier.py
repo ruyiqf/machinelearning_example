@@ -168,13 +168,44 @@ Testing code
 """
 def main():
     nc = NormalClassifier()
-    #start_time = time.time()
-    train_x, train_y, test_x, test_y = nc.Sampling('./BmpMoban', 250)
-    #print('Build date set time:%fs!'%(time.time() - start_time))
+    start_time = time.time()
+    train_x, train_y, test_x, test_y = nc.Sampling('./BmpMoban', 500)
+    print('Build date set time:%fs!'%(time.time() - start_time))
+
+    print('Build NB model')
+    start_time = time.time()
     nc.GenerateOneModel('NB', train_x, train_y)
-    #nc.GenerateOneModel('RF', train_x, train_y)
-    #nc.GenerateOneModel('SVMCV', train_x, train_y)
-    #nc.ValidateSet('./check', 10, 'NB')
+    print('Finish NB time:%fs!'%(time.time() - start_time))
+
+    print('Build LR model')
+    start_time = time.time()
+    nc.GenerateOneModel('LR', train_x, train_y)
+    print('Finish LR time:%fs!'%(time.time() - start_time))
+
+    print('Build RF model')
+    start_time = time.time()
+    nc.GenerateOneModel('RF', train_x, train_y)
+    print('Finish RF time:%fs!'%(time.time() - start_time))
+    
+    print('Build DT model')
+    start_time = time.time()
+    nc.GenerateOneModel('DT', train_x, train_y)
+    print('Finish DT time:%fs!'%(time.time() - start_time))
+
+    print('Build SVM model')
+    start_time = time.time()
+    nc.GenerateOneModel('SVM', train_x, train_y)
+    print('Finish SVM time:%fs!'%(time.time() - start_time))
+
+    print('Build SVMCV model')
+    start_time = time.time()
+    nc.GenerateOneModel('SVMCV', train_x, train_y)
+    print('Finish SVMCV time:%fs!'%(time.time() - start_time))
+    
+    print('Build GBDT model')
+    start_time = time.time()
+    nc.GenerateOneModel('GBDT', train_x, train_y)
+    print('Finish GBDT time:%fs!'%(time.time() - start_time))
 
 if __name__ == '__main__':
     main()
